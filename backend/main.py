@@ -52,6 +52,16 @@ def add_note(note: NoteIn, user_id: str = Depends(get_user_id)):
     return {"id": note_id, "saved": True}
 
 
+def _get(obj, *names):
+    # read a value whether the SDK gives us a dict or an object
+    for name in names:
+        if isinstance(obj, dict) and name in obj:
+            return obj[name]
+        if hasattr(obj, name):
+            return getattr(obj, name)
+    return None
+
+
 @app.get("/search")
 def search_notes(q: str, top_k: int = 3, user_id: str = Depends(get_user_id)):
     results = index.search(
@@ -62,8 +72,14 @@ def search_notes(q: str, top_k: int = 3, user_id: str = Depends(get_user_id)):
             "filter": {"user_id": {"$eq": user_id}},  # only this user's notes
         },
     )
-    hits = results.result.hits
-    return [
-        {"id": h["_id"], "score": h["_score"], "text": h["fields"].get(TEXT_FIELD)}
-        for h in hits
-    ]
+    output = []
+    for h in results.result.hits:
+        fields = _get(h, "fields") or {}
+        output.append(
+            {
+                "id": _get(h, "_id", "id"),
+                "score": _get(h, "_score", "score"),
+                "text": _get(fields, TEXT_FIELD),
+            }
+        )
+    return output
