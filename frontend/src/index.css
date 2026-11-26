@@ -1,0 +1,9 @@
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 640px;
+  margin: 40px auto;
+  padding: 0 16px;
+}
+input { padding: 8px; width: 70%; }
+button { padding: 8px 14px; cursor: pointer; margin-left: 6px; }
+.card { border: 1px solid #ccc; border-radius: 8px; padding: 10px; margin: 8px 0; }
