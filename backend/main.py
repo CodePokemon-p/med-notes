@@ -9,12 +9,20 @@ from pydantic import BaseModel
 load_dotenv()
 
 pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
-INDEX_NAME = os.getenv("PINECONE_INDEX", "med-notes")
+INDEX_NAME = os.getenv("PINECONE_INDEX", "med-notes-ai")
 
-# Ask Pinecone about our index: its address (host) and which field holds the text
+# Create the index the first time: Pinecone hosts the embedding model for us
+if not pc.has_index(INDEX_NAME):
+    pc.create_index_for_model(
+        name=INDEX_NAME,
+        cloud="aws",
+        region="us-east-1",  # the free plan supports this region
+        embed={"model": "llama-text-embed-v2", "field_map": {"text": "text"}},
+    )
+
 desc = pc.describe_index(INDEX_NAME)
 index = pc.Index(host=desc.host)
-TEXT_FIELD = desc.to_dict()["embed"]["field_map"]["text"]
+TEXT_FIELD = "text"  # the field name that holds the note text
 NAMESPACE = "notes"  # a namespace is a folder inside the index
 
 app = FastAPI(title="Med Notes API")
@@ -54,7 +62,7 @@ def search_notes(q: str, top_k: int = 3, user_id: str = Depends(get_user_id)):
             "filter": {"user_id": {"$eq": user_id}},  # only this user's notes
         },
     )
-    hits = results["result"]["hits"]
+    hits = results.result.hits
     return [
         {"id": h["_id"], "score": h["_score"], "text": h["fields"].get(TEXT_FIELD)}
         for h in hits
